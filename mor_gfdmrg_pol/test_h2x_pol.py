@@ -84,17 +84,17 @@ scratch_folder = 'ip'
 # fmin, fmax, df = -20.0, -19.25, 0.01
 fmin, fmax, df = None, None, None
 # fmin, fmax, df = -1, 1, 0.1
-tol = 1e-5  # 0.001
+tol = 1e-4   # 1e-5  # 0.001
 
 molec = 'H2S'
-p, q = 0, 0
+p, q = 12, 0
 
 def main(): 
 
     scratch_folder = f'mor_ip_no_{molec}_mpi1/eta{eta}_b{bond_dim}_v2/'
     # fcidump_fstr = f'/global/homes/e/erikaye/gfdmrg/gfdmrg/ryanChalk/K_xanes/fcidump_{molec}/FCIDUMP'
     # fcidump_fstr = f'/global/homes/e/erikaye/gfdmrg/gfdmrg/ryanChalk/K_xanes/fcidump_{molec}/FCIDUMP'
-    fcidump_fstr = f'../gfdmrg_h2x/fcidump_{molec}/FCIDUMP'
+    fcidump_fstr = f'../../gfdmrg_h2x/fcidump_{molec}/FCIDUMP'
 
     print('fs', fmin, fmax, df)
 
@@ -138,6 +138,9 @@ def main():
     mpo = driver.get_qc_mpo(h1e=driver.h1e, g2e=driver.g2e, ecore=driver.ecore, iprint=1)  ## will this work before "initialize_system"?
     impo = driver.get_identity_mpo()
     n_sites = driver.n_sites
+
+    num_occ = driver.n_elec
+
 
     if driver.mpi is not None:
         driver.mpi.barrier()
@@ -244,10 +247,12 @@ def main():
             b.add_term("CD", [p, q], 1.0)   ## does this work if i=j?
             exc_mpo = driver.get_mpo(b.finalize(), iprint=0)
 
+            ## q should be occupeid, p should be unoccupied
+
             ## c: creation, d: annihilation
             bra_exc_mpos = {}
-            for r in range(2):
-                for s in range(2):
+            for r in range(n_sites):    ## all unoccupied orbitals
+                for s in range(n_sites):    ## all occupied orbitals
                     b = driver.expr_builder()
                     b.add_term("CD", [r, s], 1.0)  ## does this work if i=j?
                     bra_exc_mpo = driver.get_mpo(b.finalize(), iprint=0)
@@ -283,7 +288,7 @@ def main():
             # print("FREQ = %8.2f GF[%d,%d] = %12.6f + %12.6f i" % (freq, isite, isite, gfmat[iw].real, gfmat[iw].imag))
             
             if driver.mpi is None or driver.mpi.rank == 0:
-                pickle.dump(ldos, open(SCRATCHDIR_LDOS + f'a{isite}' + '.pkl','wb'))
+                pickle.dump(ldos, open(SCRATCHDIR_LDOS + f'{exc_str}' + '.pkl','wb'))
 
         if driver.mpi is None or driver.mpi.rank == 0:
             plt.figure()
@@ -375,8 +380,8 @@ if __name__ == "__main__":
     print('fmin', fmin, fmin * ha2ev)
 
     if df is None:
-        df = np.round((fmax - fmin) / 101, 3)
+        df = np.round((fmax - fmin) / 501, 3)
         # df = 0.001
-        df = 0.0001
+        # df = 0.0001
 
     main()

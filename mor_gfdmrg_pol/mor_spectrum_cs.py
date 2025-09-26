@@ -13,7 +13,7 @@ from typing import Any
 
 def select_shift(shifts, omega, err_all: dict, tol):
     N = len(omega)
-    err = sum(err_all.values())
+    err = np.nansum([v for v in err_all.values()], axis=0) / len(err_all)
     check = err <= tol
     if np.sum(check) == N:
         shift = None
@@ -102,14 +102,14 @@ def load(driver, exc_keys:list[str], savedir=None) -> dict[str, Any]:
 
     ct_all, sigmas_all, errs_all = {}, {}, {}
     for cstr in exc_keys:
-        ct = np.load(fdir + 'ct.npy')
+        ct = np.load(fdir + f'{cstr}/' +  'ct.npy')
         print('loaded ct')
         ct_all[cstr] = ct
-        sigmas = np.load(fdir + 'sigmas.npy')
+        sigmas = np.load(fdir + f'{cstr}/' + 'sigmas.npy')
         sigmas = [sigmas[i] for i in range(len(sigmas))]
         sigmas_all[cstr] = sigmas
         print('loaded sigmas')
-        errs = np.load(fdir + 'errs.npy')
+        errs = np.load(fdir + f'{cstr}/' + 'errs.npy')
         errs_all = [errs[i] for i in range(len(errs))]
 
     conds = list(np.load(fdir + 'conds.npy'))
@@ -300,22 +300,22 @@ def mor_spectrum_all_c(driver, gf_ket, mpo, exc_mpo, gs_ket, freqs, eta, tol, br
 
             # evaluate reduced system
             sigma = -1 / np.pi * np.imag(y)
-            sigman = sigma / np.max(sigma)  # normalization
+            sigman = sigma / (np.max(sigma) + 1e-10)  # normalization
             Sigmas_all[cstr].append(sigma)
             O.append(len(V))
 
             # relative error
             if it > 0:
                 e = np.abs(sigman - Sigmas_all[cstr][-2]/np.max(Sigmas_all[cstr][-2]))
+                print('e', cstr, np.linalg.norm(e))
                 Errs_all[cstr].append(e)
                 e_all[cstr] = e
 
         save(driver, At, Et, bt, ct_all, freqs_sample, Conds, Sigmas_all, Errs_all, O, savedir=savedir)
 
-        print('eall', e_all.keys())
 
         # plot absorption spectrum
-        if make_plot:
+        if False: # make_plot:
             # update_plot(freqs, Sigmas_all[cstr][-1], freqs_sample, e_all[cstr], tol, O, it)
             fig1, ax1 = plt.subplots()
             fig2, ax2 = plt.subplots()
